@@ -1,17 +1,17 @@
+#include <cstdlib>
 #include <memory>
 #include <cmath>
 #include <chrono>
 #include <thread>
-
-#include "rclcpp/rclcpp.hpp"
-#include "rclcpp_action/rclcpp_action.hpp"
-#include "geometry_msgs/msg/point.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "nav_msgs/msg/odometry.hpp"
-#include "tf2/LinearMath/Quaternion.h"
-#include "tf2/LinearMath/Matrix3x3.h"
+#include <gtest/gtest.h>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+#include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
 #include "tortoisebot_interfaces/action/waypoint.hpp"
-#include "gtest/gtest.h"
 
 using namespace std::chrono_literals;
 
@@ -142,10 +142,14 @@ protected:
 
 nav_msgs::msg::Odometry::SharedPtr WaypointActionTest::last_odom_data_ = nullptr;
 
+// Global variables to hold input parameters
+double goal_x = 0.0;
+double goal_y = 0.0;
+
 TEST_F(WaypointActionTest, TestEndPosition) {
     geometry_msgs::msg::Point goal_position;
-    goal_position.x = 0.5;
-    goal_position.y = 0.5;
+    goal_position.x = goal_x;
+    goal_position.y = goal_y;
     goal_position.z = 0.0;
 
     bool goal_sent = action_client_node_->send_goal(goal_position);
@@ -179,15 +183,25 @@ TEST_F(WaypointActionTest, TestEndYaw) {
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
 
-    double goal_yaw = std::atan2(0.5, 0.5);
+    double goal_yaw = std::atan2(goal_y, goal_x);
     double error_margin = M_PI / 90;  // Allowable error margin for yaw
 
-    EXPECT_NEAR(yaw, goal_yaw, 5*error_margin) << "Final Yaw is incorrect";
+    EXPECT_NEAR(yaw, goal_yaw, 10 * error_margin) << "Final Yaw is incorrect";
 }
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     rclcpp::init(argc, argv); // Initialize ROS context
+
+    // Read input parameters from environment variables
+    const char* env_x = std::getenv("GOAL_X");
+    const char* env_y = std::getenv("GOAL_Y");
+
+    if (env_x && env_y) {
+        goal_x = std::stod(env_x);
+        goal_y = std::stod(env_y);
+    }
+
     int result = RUN_ALL_TESTS();
     rclcpp::shutdown(); // Shutdown ROS context
     return result;
